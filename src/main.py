@@ -1,5 +1,7 @@
 import requests
 from typing import TypedDict
+from dotenv import load_dotenv
+import os
 
 class ExchangeResult(TypedDict):
     date: str
@@ -34,8 +36,13 @@ def get_exchange_rate(base: str, targets: list[str]) -> ExchangeResult | None:
         return None
 
 if __name__ == "__main__":
+    # .env ファイルの読み込み
+    load_dotenv()
+    base_currency = os.getenv("BASE_CURRENCY")
+    if not base_currency:
+        base_currency = "JPY"
+
     # パラメータ設定
-    base_currency = "JPY"
     target_currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "CHF", "CNY", "HKD", "NZD", "KRW"]
 
     # 為替レートを取得
