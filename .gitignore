@@ -1,0 +1,25 @@
+# コンパイルされたバイトコード
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 仮想環境
+.venv/
+venv/
+
+# 設定ファイル
+.env
+
+# data
+# data/*
+# *.csv
+# *.txt
+# *.parquet
+
+# MEDIA_ROOT, MEDIA_URL
+media/*
+*.jpg
+
+# SQLite
+*.sqlite3
+*.db
