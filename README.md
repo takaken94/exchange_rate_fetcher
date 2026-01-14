@@ -1,7 +1,7 @@
 # Exchange Rate Fetcher
 
 ## 概要
-外部API (https://frankfurter.dev/) から為替レートを取得して保存する。
+外部APIから為替レートを取得して保存する。
 
 ## 使用技術
 - Python 3.11
