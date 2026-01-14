@@ -11,10 +11,7 @@ venv/
 .env
 
 # data
-# data/*
-# *.csv
-# *.txt
-# *.parquet
+data/
 
 # MEDIA_ROOT, MEDIA_URL
 media/*
