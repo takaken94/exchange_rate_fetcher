@@ -8,10 +8,35 @@ from pathlib import Path
 from datetime import datetime
 
 # ロギング設定
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
-)
+def setup_logging() -> None:
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+
+    log_file = log_dir / "app.log"
+
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+    )
+
+    # ルートロガー
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    # コンソール出力
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+
+    # ファイル出力
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+
+    # 二重登録防止（重要）
+    if not root_logger.handlers:
+        root_logger.addHandler(console_handler)
+        root_logger.addHandler(file_handler)
+
 logger = logging.getLogger(__name__)
 
 class ExchangeResult(TypedDict):
@@ -63,6 +88,9 @@ def save_to_json(result: ExchangeResult) -> Path:
     return file_path
 
 if __name__ == "__main__":
+    # ロギング設定
+    setup_logging()
+
     # .env ファイルの読み込み
     load_dotenv()
     base_currency = os.getenv("BASE_CURRENCY")

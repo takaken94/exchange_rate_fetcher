@@ -25,7 +25,7 @@
 Windows 11 + WSL2 (Ubuntu) + Docker Engine を想定
 ```bash
 docker build -f docker/Dockerfile -t exchange_rate_fetcher .
-docker run --rm -e BASE_CURRENCY=JPY -v $(pwd)/data:/app/data exchange_rate_fetcher
+docker run --rm -e BASE_CURRENCY=JPY -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs exchange_rate_fetcher
 ```
 ### テスト
 ```bash
