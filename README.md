@@ -7,16 +7,18 @@
 - Python 3.11
 - requests
 - Docker
-- AWS (Lambda, EventBridge, S3)
+<!-- - AWS (Lambda, EventBridge, S3) -->
 
 ## 機能
 - 為替レート取得
 - JSON形式での保存
 - ログ出力
-- S3への保存
+<!-- - S3への保存 -->
 
+<!-- 
 ## システム構成
 （簡単な構成図 or テキスト）
+-->
 
 ## 実行方法
 ### 開発環境
@@ -30,8 +32,10 @@ docker run --rm -e BASE_CURRENCY=JPY -v $(pwd)/data:/app/data exchange_rate_fetc
 docker run --rm -e BASE_CURRENCY=JPY -v $(pwd)/data:/app/data exchange_rate_fetcher pytest
 ```
 
+<!-- 
 ### 運用環境
 AWS Lambda + Amazon EventBridge + Amazon S3
+-->
 
 ## 出力例
 - JSON形式で為替レートを保存
