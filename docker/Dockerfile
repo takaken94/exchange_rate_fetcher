@@ -12,5 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # ソースコード
 COPY src/ ./src
+COPY tests/ ./tests
 
 CMD ["python", "src/main.py"]

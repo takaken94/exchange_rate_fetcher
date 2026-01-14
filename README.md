@@ -13,7 +13,6 @@
 - 為替レート取得
 - JSON形式での保存
 - ログ出力
-- APIエラー時のリトライ
 - S3への保存
 
 ## システム構成
@@ -25,6 +24,10 @@ Windows 11 + WSL2 (Ubuntu) + Docker Engine を想定
 ```bash
 docker build -f docker/Dockerfile -t exchange_rate_fetcher .
 docker run --rm -e BASE_CURRENCY=JPY -v $(pwd)/data:/app/data exchange_rate_fetcher
+```
+### テスト
+```bash
+docker run --rm -e BASE_CURRENCY=JPY -v $(pwd)/data:/app/data exchange_rate_fetcher pytest
 ```
 
 ### 運用環境
