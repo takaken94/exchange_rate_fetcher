@@ -6,38 +6,9 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
+from src.logging_config import setup_logging
 
-# ロギング設定
-def setup_logging() -> None:
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
-
-    log_file = log_dir / "app.log"
-
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
-    )
-
-    # ルートロガー
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
-
-    # コンソール出力
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-
-    # ファイル出力
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-
-    # 二重登録防止（重要）
-    if not root_logger.handlers:
-        root_logger.addHandler(console_handler)
-        root_logger.addHandler(file_handler)
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(Path(__file__).stem)
 
 class ExchangeResult(TypedDict):
     date: str
@@ -64,14 +35,14 @@ def get_exchange_rate(base: str, targets: list[str]) -> ExchangeResult | None:
             "base": base,
             "rates": data["rates"],
         }
-    except requests.exceptions.Timeout as e:
-        logger.error(f"タイムアウトが発生しました: {e}")
+    except requests.exceptions.Timeout:
+        logger.exception(f"タイムアウトが発生しました")
         return None
-    except requests.exceptions.RequestException as e:
-        logger.error(f"APIエラーが発生しました: {e}")
+    except requests.exceptions.RequestException:
+        logger.exception(f"APIエラーが発生しました")
         return None
-    except Exception as e:
-        logger.error(f"エラーが発生しました: {e}")
+    except Exception:
+        logger.exception(f"エラーが発生しました")
         return None
 
 def save_to_json(result: ExchangeResult) -> Path:
