@@ -1,4 +1,1 @@
 requests
-python-dotenv
-pytest
-boto3

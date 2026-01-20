@@ -1,0 +1,11 @@
+{
+  "name": "exchange-rate-fetcher",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {}
+  },
+  "mounts": [
+    "source=/home/takaken/.aws,target=/home/vscode/.aws,type=bind"
+  ],
+  "postCreateCommand": "pip install -r requirements.txt -r requirements_dev.txt"
+}
