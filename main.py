@@ -83,7 +83,8 @@ def upload_to_s3(file_path: Path, bucket_name: str, prefix: str) -> None:
     logger.info("S3アップロード完了 s3://%s/%s", bucket_name, s3_key)
     return
 
-if __name__ == "__main__":
+def run() -> None:
+
     # ロギング設定
     setup_logging()
 
@@ -124,3 +125,16 @@ if __name__ == "__main__":
 
     # S3 アップロード
     upload_to_s3(json_path, bucket_name, prefix)
+
+def lambda_handler(evnt, context):
+    """
+    AWS Lambda エントリーポイント
+    """
+    run()
+    return {
+        "statusCode": 200,
+        "message": "exchange rate fetched and uploaded"
+    }
+
+if __name__ == "__main__":
+    run()

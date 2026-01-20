@@ -10,15 +10,12 @@ venv/
 # 設定ファイル
 .env
 
-# data
-data/
+# build
+build/
+*.zip
 
 # logs
 logs/
-
-# MEDIA_ROOT, MEDIA_URL
-media/*
-*.jpg
 
 # SQLite
 *.sqlite3
