@@ -1,7 +1,10 @@
 import requests
 import logging
 from typing import TypedDict
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 import os
 import sys
 import json
@@ -89,7 +92,8 @@ def run() -> None:
     setup_logging()
 
     # .env ファイルの読み込み
-    load_dotenv()
+    if load_dotenv:
+        load_dotenv()
     base_currency = os.getenv("BASE_CURRENCY")
     if not base_currency:
         base_currency = "JPY"

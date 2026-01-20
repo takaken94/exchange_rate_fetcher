@@ -1,36 +1,35 @@
 import logging
+import os
 from pathlib import Path
 
 
-def setup_logging() -> None:
-    """
-    ロギング設定
-    コンソール出力とファイル出力（logs/app.log）を有効にする
-    """
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
+def setup_logging():
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
-    log_file = log_dir / "app.log"
+    # すでに handler があれば二重登録しない
+    if logger.handlers:
+        return
 
     formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+        "%(asctime)s %(levelname)s %(name)s %(message)s"
     )
 
-    # ルートロガー
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
-
-    # コンソール出力
+    # 共通：コンソール出力（stdout）
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
-    # ファイル出力
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
+    # Lambda 実行判定
+    is_lambda = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
-    # 二重登録防止（重要）
-    if not root_logger.handlers:
-        root_logger.addHandler(console_handler)
-        root_logger.addHandler(file_handler)
+    if not is_lambda:
+        # ローカルのみ：ファイル出力
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+
+        file_handler = logging.FileHandler(
+            log_dir / "app.log", encoding="utf-8"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
