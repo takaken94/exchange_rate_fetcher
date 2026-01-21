@@ -64,7 +64,7 @@ def save_to_json(result: ExchangeResult) -> Path:
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
-    logger.info("JSON保存完了 path=%s", file_path)
+    logger.info("JSONファイル保存完了 path=%s", file_path)
     return file_path
 
 def upload_to_s3(file_path: Path, bucket_name: str, prefix: str) -> None:
@@ -79,11 +79,16 @@ def upload_to_s3(file_path: Path, bucket_name: str, prefix: str) -> None:
             s3_key,
             ExtraArgs={"ContentType": "application/json"},
         )
+        logger.info("S3アップロード完了 s3://%s/%s", bucket_name, s3_key)
+
+        # 一時ファイル（tempfile配下のJSONファイル）を削除する
+        if file_path.exists():
+            file_path.unlink()
+            logger.info("一時ファイル削除完了 path=%s", file_path)
     except Exception:
         logger.exception("S3へのアップロードに失敗しました。")
         raise
 
-    logger.info("S3アップロード完了 s3://%s/%s", bucket_name, s3_key)
     return
 
 def run() -> None:
@@ -94,6 +99,9 @@ def run() -> None:
     # .env ファイルの読み込み
     if load_dotenv:
         load_dotenv()
+        logger.info(".env ファイルから環境変数の値を読み込みました。")
+
+    # 環境変数の取得
     base_currency = os.getenv("BASE_CURRENCY")
     if not base_currency:
         base_currency = "JPY"
@@ -106,7 +114,7 @@ def run() -> None:
         logger.error("S3_PREFIX が設定されていません。")
         sys.exit(1)
 
-    # パラメータ設定
+    # 対象の通貨リスト
     target_currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "CHF", "CNY", "HKD", "NZD", "KRW"]
 
     # 為替レートを取得
