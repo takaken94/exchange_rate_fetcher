@@ -67,9 +67,9 @@ tests/test_exchange.py ..                                                       
 ```
 
 ## ファイルサンプル
-```json
-ファイル名: exchange_2026-01-21T02-11-58Z.json
+ファイル名: exchange_2026-01-21T02-11-58Z.json<br>
 ファイル内容:
+```json
 {
   "date": "2026-01-20",
   "base": "JPY",
