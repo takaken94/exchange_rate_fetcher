@@ -1,5 +1,5 @@
 from unittest.mock import patch, Mock
-from src.main import get_exchange_rate
+from main import get_exchange_rate
 from typing import TypedDict
 
 class MockApiResponse(TypedDict):
