@@ -1,7 +1,14 @@
 # Exchange Rate Fetcher
 
 ## 概要
-外部APIから為替レートを取得して、JSON形式ファイルを S3にアップロードする。
+外部APIから為替レートを取得し、AWS S3へデータ転送を行うプログラムです。
+
+## 本プロジェクトの目的
+- サーバーレス運用: AWS Lambda / EventBridge を利用した低コストな自動実行
+- データ永続化: 取得データを JSON 形式で S3 に蓄積し、後の分析に活用できる構成
+
+## システム構成
+EventBridge スケジュール  ->  Lambda 関数 ->  S3 バケット
 
 ## 使用技術
 - Python 3.11
@@ -57,17 +64,6 @@ collected 2 items
 tests/test_exchange.py ..                                                                                                                                                     [100%]
 
 ================================================================================= 2 passed in 0.27s =================================================================================
-```
-
-### 運用環境
-```
-システム構成
-
-EventBridge スケジュール（cron 定期実行）
-      ↓
-Lambda 関数 exchange-rate-fetcher（zip）
-      ↓
-S3バケット takaken94-exchange-rate-fetcher/rates-data/
 ```
 
 ## ファイルサンプル
