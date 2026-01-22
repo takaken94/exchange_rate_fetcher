@@ -17,8 +17,8 @@ import tempfile
 logger = logging.getLogger(Path(__file__).stem)
 
 class ExchangeResult(TypedDict):
-    date: str # 為替レート基準日
-    base: str
+    date: str # 基準日
+    base: str # 基準通貨コード
     rates: dict[str, float] # 通貨コードとレートの辞書
     fetched_at: str  # データ取得日時（ISOフォーマット）
 
@@ -92,7 +92,6 @@ def upload_to_s3(file_path: Path, bucket_name: str, prefix: str) -> None:
     return
 
 def run() -> None:
-
     # ロギング設定
     setup_logging()
 
@@ -104,7 +103,16 @@ def run() -> None:
     # 環境変数の取得
     base_currency = os.getenv("BASE_CURRENCY")
     if not base_currency:
-        base_currency = "JPY"
+        base_currency = "USD"
+
+    target_currencies_env = os.getenv("TARGET_CURRENCIES")
+    if target_currencies_env:
+        # カンマで分割し、前後の空白を除去してリスト化
+        target_currencies = [t.strip() for t in target_currencies_env.split(",")]
+    else:
+        # 環境変数が設定されていない場合のデフォルト
+        target_currencies = ["JPY", "EUR", "GBP"]
+
     bucket_name = os.getenv("S3_BUCKET_NAME")
     if not bucket_name:
         logger.error("S3_BUCKET_NAME が設定されていません。")
@@ -113,30 +121,45 @@ def run() -> None:
     if not prefix:
         logger.error("S3_PREFIX が設定されていません。")
         sys.exit(1)
-
-    # 対象の通貨リスト
-    target_currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "CHF", "CNY", "HKD", "NZD", "KRW"]
+    
+    # target_currencies に JPY が含まれていない場合は先頭に追加（計算に必要）
+    if "JPY" not in target_currencies:
+        target_currencies.insert(0, "JPY")
+        logger.info("リストに JPY が含まれていなかったため、先頭に追加しました。")
 
     # 為替レートを取得
     result = get_exchange_rate(base=base_currency, targets=target_currencies)
     if not result:
         logger.error("為替レートの取得に失敗しました。")
         sys.exit(1)
-
-    logger.info(f"為替レート取得結果 ({result['date']})")
-    # 取得した各通貨（USD, EURなど）についてループ処理
-    for target, rate in result['rates'].items():
-        # 逆数を計算して「1ターゲット通貨 = 〇〇 JPY」にする
-        jpy_rate = 1 / rate
-        display_name = f"{target}_{result['base']}"
-        # 結果を表示
-        logger.info(f"{display_name}: {jpy_rate:.2f} 円")
+    logger.info("為替レート取得完了")
 
     # 結果をJSONファイルに保存
     json_path = save_to_json(result)
 
     # S3 アップロード
     upload_to_s3(json_path, bucket_name, prefix)
+
+    #  USD_JPY レートを取得
+    usd_jpy_rate = result['rates'].get("JPY", 0)
+    # target_currencies のリスト順にループを回す
+    logger.info(f"為替レート取得結果（基準日:{result['date']}）")
+    for target in target_currencies:
+        rate = result['rates'].get(target)
+        if rate is None:
+            continue
+
+        if target == "JPY":
+            # 基準通貨(USD)とJPYのペアを表示
+            display_name = f"{result['base']}_{target}"
+            display_rate = rate
+        else:
+            # それ以外の通貨は対円(XXX_JPY)に変換
+            display_name = f"{target}_JPY"
+            display_rate = usd_jpy_rate / rate
+            
+        # ログ出力
+        logger.info(f"{display_name}: {display_rate:.2f} 円")
 
 def lambda_handler(evnt, context):
     """
