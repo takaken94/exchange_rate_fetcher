@@ -8,7 +8,14 @@
 - データ永続化: 取得したデータを JSON 形式で S3 に蓄積
 
 ## システム構成
-EventBridge スケジューラ  -->  Lambda 関数 -->  S3 バケット
+```mermaid
+graph LR
+    subgraph AWS_Cloud ["AWS Cloud"]
+        EB[EventBridge<br/>Scheduler] -- "Trigger (Cron)" --> Lambda[Lambda Function<br/>Python 3.11]
+        Lambda -- "Fetch Rate" --> API((External API))
+        Lambda -- "Store JSON" --> S3[(S3 Bucket)]
+    end
+```
 
 ## 使用技術
 - Python 3.11
@@ -53,20 +60,30 @@ pytest -v
 
 ```plaintext
 vscode ➜ /workspaces/exchange_rate_fetcher (main) $ pytest -v
-================================================================================ test session starts =========
+================================================================================ test session starts ==
 platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python3.11
 cachedir: .pytest_cache
 rootdir: /workspaces/exchange_rate_fetcher
-collected 5 items                                                                                                   
+collected 5 items                                                                             
 
-tests/test_error.py::test_get_exchange_rate_api_error PASSED                                                        [ 20%]
-tests/test_error.py::test_run_fail_error PASSED                                                                     [ 40%]
-tests/test_normal.py::test_run_logic_jpy_injection PASSED                                                           [ 60%]
-tests/test_normal.py::test_default_target_currencies_used PASSED                                                    [ 80%]
-tests/test_normal.py::test_cross_rate_calculation PASSED                                                            [100%]
+tests/test_error.py::test_get_exchange_rate_api_error PASSED                                  [ 20%]
+tests/test_error.py::test_run_fail_error PASSED                                               [ 40%]
+tests/test_normal.py::test_run_logic_jpy_injection PASSED                                     [ 60%]
+tests/test_normal.py::test_default_target_currencies_used PASSED                              [ 80%]
+tests/test_normal.py::test_cross_rate_calculation PASSED                                      [100%]
 
-================================================================================= 5 passed in 0.28s ==========
+================================================================================= 5 passed in 0.28s ==
 ```
+## AWS での稼働実績
+本プロジェクトは AWS 上で定期実行されています。
+
+### CloudWatch Logs
+Lambda 関数 exchange-rate-fetcher が EventBridge スケジューラによって起動され、為替レートを取得しているログです。
+![CloudWatch Logs](doc/cloudwatch_log.jpg)
+
+### S3 バケット
+アップロードした JSON ファイルが日付ごとに蓄積されている様子です。
+![S3 Bucket](doc/s3_objects.jpg)
 
 ## ファイルサンプル
 ファイル名: exchange_2026-01-22T06-00-34Z.json<br>
