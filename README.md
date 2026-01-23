@@ -1,30 +1,24 @@
 # Exchange Rate Fetcher
 
 ## 概要
-外部APIから為替レートを取得し、AWS S3へアップロードするサンプルプロジェクトです。
-
-## 本プロジェクトの目的
-- サーバーレス運用: AWS Lambda / EventBridge スケジューラを利用した自動実行
-- データ永続化: 取得したデータを JSON 形式で S3 に蓄積
+外部 API から為替レートを取得し、AWS S3 へアップロードする自動化ツールです。<br>
+- サーバーレス運用: AWS Lambda / EventBridge スケジューラを利用した自動実行します。<br>
+- データ永続化: 取得した為替レートを JSON ファイル形式で S3 に蓄積します。<br>
 
 ## システム構成
-```mermaid
-graph LR
-    subgraph AWS_Cloud ["AWS Cloud"]
-        EB[EventBridge<br/>Scheduler] -- "Trigger (Cron)" --> Lambda[Lambda Function<br/>Python 3.11]
-        Lambda -- "Fetch Rate" --> API((External API))
-        Lambda -- "Store JSON" --> S3[(S3 Bucket)]
-    end
-```
+
+EventBridge スケジューラ (cron)<br>
+--> Lambda 関数 <-> 外部 API<br>
+--> S3 バケット<br>
 
 ## 使用技術
 - Python 3.11
 - requests ライブラリ
-- AWS (Lambda, S3, EventBridge)
+- AWS (Lambda, EventBridge, S3)
 
 ## 機能
-- 外部APIから為替レート取得
-- JSON形式でファイル一時保存
+- 外部 API から為替レート取得
+- JSON ファイル形式で一時保存
 - S3 にアップロード
 
 ## 実行方法
@@ -60,26 +54,26 @@ pytest -v
 
 ```plaintext
 vscode ➜ /workspaces/exchange_rate_fetcher (main) $ pytest -v
-================================================================================ test session starts ==
+================================================================================ test session starts
 platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python3.11
 cachedir: .pytest_cache
 rootdir: /workspaces/exchange_rate_fetcher
 collected 5 items                                                                             
 
-tests/test_error.py::test_get_exchange_rate_api_error PASSED                                  [ 20%]
-tests/test_error.py::test_run_fail_error PASSED                                               [ 40%]
-tests/test_normal.py::test_run_logic_jpy_injection PASSED                                     [ 60%]
-tests/test_normal.py::test_default_target_currencies_used PASSED                              [ 80%]
-tests/test_normal.py::test_cross_rate_calculation PASSED                                      [100%]
+tests/test_error.py::test_get_exchange_rate_api_error PASSED                               [ 20%]
+tests/test_error.py::test_run_fail_error PASSED                                            [ 40%]
+tests/test_normal.py::test_run_logic_jpy_injection PASSED                                  [ 60%]
+tests/test_normal.py::test_default_target_currencies_used PASSED                           [ 80%]
+tests/test_normal.py::test_cross_rate_calculation PASSED                                   [100%]
 
-================================================================================= 5 passed in 0.28s ==
+================================================================================= 5 passed in 0.28s
 ```
 ## AWS での稼働実績
 本プロジェクトは AWS 上で定期実行されています。
 
 ### CloudWatch Logs
 Lambda 関数 exchange-rate-fetcher が EventBridge スケジューラによって起動され、為替レートを取得しているログです。
-![CloudWatch Logs](doc/cloudwatch_log.jpg)
+![CloudWatch Logs](doc/cloud_watch_log.jpg)
 
 ### S3 バケット
 アップロードした JSON ファイルが日付ごとに蓄積されている様子です。
@@ -87,7 +81,6 @@ Lambda 関数 exchange-rate-fetcher が EventBridge スケジューラによっ�
 
 ## ファイルサンプル
 ファイル名: exchange_2026-01-22T06-00-34Z.json<br>
-ファイル内容:
 ```json
 {
   "date": "2026-01-21",
