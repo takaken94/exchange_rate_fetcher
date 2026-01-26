@@ -24,7 +24,7 @@ class ExchangeResult(TypedDict):
 
 def get_exchange_rate(base: str, targets: list[str]) -> ExchangeResult | None:
     # API のURL
-    url = "https://api.frankfurter.app/latest"
+    url = "https://api.frankfurter.dev/v1/latest"
     # targets をカンマ区切りの文字列に変換
     target_str = ",".join(targets)
     params = {
