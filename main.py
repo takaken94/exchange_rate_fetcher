@@ -95,11 +95,6 @@ def run() -> None:
     # ロギング設定
     setup_logging()
 
-    # .env ファイルの読み込み
-    if load_dotenv:
-        load_dotenv()
-        logger.info(".env ファイルから環境変数の値を読み込みました。")
-
     # 環境変数の取得
     base_currency = os.getenv("BASE_CURRENCY")
     if not base_currency:
@@ -172,4 +167,8 @@ def lambda_handler(evnt, context):
     }
 
 if __name__ == "__main__":
+    # .env ファイルの読み込み
+    if load_dotenv:
+        load_dotenv()
+
     run()
