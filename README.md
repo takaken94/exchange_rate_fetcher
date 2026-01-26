@@ -1,34 +1,40 @@
-# Exchange Rate Fetcher
+# Exchange Rate Fetcher 為替レート取得ツール
 
 ## 概要
-外部 API から為替レートを取得し、AWS S3 へアップロードする自動化ツールです。<br>
-- サーバーレス運用: AWS Lambda / EventBridge スケジューラを利用した自動実行します。<br>
-- データ永続化: 取得した為替レートを JSON ファイル形式で S3 に蓄積します。<br>
+外部 API から為替レートを取得し、Amazon S3 へアップロードする自動化ツール<br>
+- **サーバーレス運用**: AWS Lambda と EventBridge スケジューラによる定期実行<br>
+- **データ永続化**: 取得データを JSON 形式で、Amazon S3 に蓄積<br>
 
 ## システム構成
-
-EventBridge スケジューラ (cron)<br>
---> Lambda 関数 <-> 外部 API<br>
---> S3 バケット<br>
+- **トリガー**: EventBridge スケジューラ（cron形式による定期実行）
+- **実行環境**: AWS Lambda（API連携・データ加工処理）
+- **保存先**:   Amazon S3 バケット（JSON形式）
 
 ## 使用技術
-- Python 3.11
-- requests ライブラリ
-- AWS (Lambda, EventBridge, S3)
+- **言語**: Python 3.11
+- **ライブラリ**: requests
+- **基盤**: AWS (Lambda、EventBridge、S3)
+- **API**: <a href="https://frankfurter.dev/">Frankfurter API</a>（為替レートの取得）
 
 ## 機能
-- 外部 API から為替レート取得
-- JSON ファイル形式で一時保存
-- S3 にアップロード
+- **データ取得**: 外部 API から最新の為替レートを取得
+- **データ処理**: 取得データを JSON 形式へ変換（/tmp ディレクトリ配下に一時保存）
+- **データ保存**: Amazon S3 バケットにアップロード
 
 ## 実行方法
 ### 開発環境
-Windows 11 + WSL2 (Ubuntu) + Dev Container を想定。<br>
-前提条件: aws sso login で認証済みであること。
+- **OS**: Windows 11 + WSL2 (Ubuntu)
+- **環境構成**: VS Code の Dev Container
+- **認証**: aws sso login により認証済みであること
 
+### ローカル実行
+プロジェクトルートにて以下のコマンドを実行します。
 ```bash
 python main.py
 ```
+
+### 実行ログ例
+.env ファイルから環境変数の値を読み込み、API 取得、一時保存、S3 アップロード、一時ファイル削除までの一連のフローが実行されます。
 
 ```plaintext
 vscode ➜ /workspaces/exchange_rate_fetcher (main) $ python main.py
@@ -42,22 +48,19 @@ vscode ➜ /workspaces/exchange_rate_fetcher (main) $ python main.py
 2026-01-22 15:00:35,823 INFO main 為替レート取得結果（基準日:2026-01-21）
 2026-01-22 15:00:35,823 INFO main USD_JPY: 157.79 円
 2026-01-22 15:00:35,823 INFO main EUR_JPY: 185.23 円
-2026-01-22 15:00:35,823 INFO main GBP_JPY: 211.84 円
-2026-01-22 15:00:35,823 INFO main CAD_JPY: 114.40 円
-2026-01-22 15:00:35,823 INFO main AUD_JPY: 106.82 円
+...
 ```
 
 ### テスト
+pytest を使用して、正常系、異常系（APIエラーなど）のテストを行います。
+
 ```bash
 pytest -v
 ```
 
+### テスト結果
 ```plaintext
-vscode ➜ /workspaces/exchange_rate_fetcher (main) $ pytest -v
 ================================================================================ test session starts
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python3.11
-cachedir: .pytest_cache
-rootdir: /workspaces/exchange_rate_fetcher
 collected 5 items                                                                             
 
 tests/test_error.py::test_get_exchange_rate_api_error PASSED                               [ 20%]
@@ -68,30 +71,36 @@ tests/test_normal.py::test_cross_rate_calculation PASSED                        
 
 ================================================================================= 5 passed in 0.28s
 ```
-## AWS での稼働実績
-本プロジェクトは AWS 上で定期実行されています。
 
-### CloudWatch Logs
-Lambda 関数 exchange-rate-fetcher が EventBridge スケジューラによって起動され、為替レートを取得しているログです。
+## 運用
+本プロジェクトは、 AWS 基盤にて定期実行されています。<br>
+以下は、 AWS マネジメントコンソールで確認した稼働状況です。
+
+### 処理ログ（Amazon CloudWatch Logs）
+EventBridge スケジューラによって起動された Lambda 関数（exchange-rate-fetcher）の実行ログです。<br>
+
 ![CloudWatch Logs](doc/cloud_watch_log.jpg)
 
-### S3 バケット
-アップロードした JSON ファイルが日付ごとに蓄積されている様子です。
+### ストレージ（Amazon S3 バケット）
+取得した為替レートは、以下のバケットへ JSON ファイルとして蓄積します。<br>
+- バケット名: takaken94-exchange-rate-fetcher
+- 保存パス: /rates-data/
+
 ![S3 Bucket](doc/s3_objects.jpg)
 
-## ファイルサンプル
-ファイル名: exchange_2026-01-22T06-00-34Z.json<br>
+### 保存ファイルの内容（サンプル）
+exchange_2026-01-22T23-00-13Z.json<br>
 ```json
 {
-  "date": "2026-01-21",
+  "date": "2026-01-22",
   "base": "USD",
   "rates": {
-    "AUD": 1.4771,
-    "CAD": 1.3793,
-    "EUR": 0.85186,
-    "GBP": 0.74487,
-    "JPY": 157.79
+    "AUD": 1.4691,
+    "CAD": 1.3814,
+    "EUR": 0.85426,
+    "GBP": 0.74509,
+    "JPY": 158.79
   },
-  "fetched_at": "2026-01-22T06:00:34.616351+00:00"
+  "fetched_at": "2026-01-22T23:00:13.341418+00:00"
 }
 ```
