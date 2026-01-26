@@ -38,7 +38,6 @@ python main.py
 
 ```plaintext
 vscode ➜ /workspaces/exchange_rate_fetcher (main) $ python main.py
-2026-01-22 15:00:32,509 INFO main .env ファイルから環境変数の値を読み込みました。
 2026-01-22 15:00:34,617 INFO main 為替レート取得完了
 2026-01-22 15:00:34,622 INFO main JSONファイル保存完了 path=/tmp/exchange_rates/exchange_2026-01-22T06-00-34Z.json
 2026-01-22 15:00:34,717 INFO botocore.tokens Loading cached SSO token for takaken94-sso
