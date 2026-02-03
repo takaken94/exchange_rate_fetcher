@@ -8,13 +8,15 @@
 ## システム構成
 - **トリガー**: EventBridge スケジューラ（cron形式による定期実行）
 - **実行環境**: AWS Lambda（API連携・データ加工処理）
+- **外部 API**: <a href="https://frankfurter.dev/">Frankfurter API</a>（為替レートの提供）
 - **保存先**:   Amazon S3 バケット（JSON形式）
+
+![システム構成図](doc/system_architecture_fetcher.png)
 
 ## 使用技術
 - **言語**: Python 3.11
 - **ライブラリ**: requests
-- **基盤**: AWS (Lambda、EventBridge、S3)
-- **API**: <a href="https://frankfurter.dev/">Frankfurter API</a>（為替レートの取得）
+- **インフラ**: AWS (Lambda、EventBridge、S3)
 
 ## 機能
 - **データ取得**: 外部 API から最新の為替レートを取得
@@ -72,7 +74,7 @@ tests/test_normal.py::test_cross_rate_calculation PASSED                        
 ```
 
 ## 運用
-本プロジェクトは、 AWS 基盤にて定期実行されています。<br>
+本プロジェクトは、 AWS インフラにて定期実行されています。<br>
 以下は、 AWS マネジメントコンソールで確認した稼働状況です。
 
 ### 処理ログ（Amazon CloudWatch Logs）
