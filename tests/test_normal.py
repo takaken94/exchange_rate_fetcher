@@ -1,7 +1,6 @@
 from unittest.mock import patch
 import os
 import main
-from main import get_exchange_rate
 
 def test_run_logic_jpy_injection():
     """環境変数に JPY がなくても自動追加されることをテスト"""
