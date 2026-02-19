@@ -9,155 +9,190 @@ import os
 import sys
 import json
 from pathlib import Path
-from datetime import datetime, timezone
-from src.logging_config import setup_logging
+from datetime import date, datetime, timezone
 import boto3
-import tempfile
+import io
+from dataclasses import dataclass
+from src.logging_config import setup_logging
+
 
 logger = logging.getLogger(Path(__file__).stem)
 
-class ExchangeResult(TypedDict):
-    date: str # 基準日
-    base: str # 基準通貨コード
-    rates: dict[str, float] # 通貨コードとレートの辞書
-    fetched_at: str  # データ取得日時（ISOフォーマット）
+@dataclass(frozen=True)
+class ExchangeRate:
+    date: date           # 基準日
+    base: str            # 基準通貨コード
+    currency: str        # 通貨コード
+    rate: float          # 為替レート
+    fetched_at: datetime # データ取得日時
 
-class Config(TypedDict):
-    base: str
-    targets: list[str]
-    bucket: str
-    prefix: str
+@dataclass(frozen=True)
+class Config:
+    base: str            # 基準通貨コード
+    targets: list[str]   # 取得対象通貨コードのリスト
+    bucket: str          # S3バケット名
+    prefix: str          # S3プレフィックス
+
+    def __post_init__(self):
+        """インスタンス化直後にバリデーションを実行"""
+        if not self.bucket:
+            raise ValueError("S3_BUCKET_NAME が設定されていません。")
+        if not self.prefix:
+            raise ValueError("S3_PREFIX が設定されていません。")
+        if "JPY" not in self.targets:
+            raise ValueError("TARGET_CURRENCIES に JPY が含まれていません。")
 
 def request_api_exchange_rate(base: str, targets: list[str]) -> dict:
     """ APIリクエスト """
 
     url = "https://api.frankfurter.dev/v1/latest"
     params = {
-        "from": base,
-        "to": ",".join(targets),
+        "base": base,
+        "symbols": ",".join(targets),
     }
 
     response = requests.get(url, params=params, timeout=10)
     response.raise_for_status()
     return response.json()
 
-def build_exchange_result(data: dict) -> ExchangeResult:
-    """ APIレスポンスからExchangeResultに変換 """
+def build_exchange_result(data: dict) -> list[ExchangeRate]:
+    """ APIレスポンスから為替レートデータ構築 """
 
-    return {
-        "date": data["date"],
-        "base": data["base"],
-        "rates": data["rates"],
-        "fetched_at": datetime.now(timezone.utc).isoformat(),
-    }
+    fetched_at = datetime.now(timezone.utc)
 
-def get_exchange_rate(base: str, targets: list[str]) -> ExchangeResult | None:
+    results = []
+    for currency, rate in data["rates"].items():
+        results.append(
+            ExchangeRate(
+                date=datetime.fromisoformat(data["date"]).date(),
+                base=data["base"],
+                currency=currency,
+                rate=rate,
+                fetched_at=fetched_at,
+            )
+        )
+    return results
+
+def fetch_exchange_rate(base: str, targets: list[str]) -> list[ExchangeRate] | None:
     """ 為替レート取得 """
 
     try:
-        data = request_api_exchange_rate(base, targets)
-        return build_exchange_result(data)
+        response = request_api_exchange_rate(base, targets)
+        return build_exchange_result(response)
 
     except requests.exceptions.Timeout:
-        logger.exception(f"APIタイムアウトが発生しました")
+        logger.exception("APIタイムアウトが発生しました")
         return None
     except requests.exceptions.RequestException:
-        logger.exception(f"APIエラーが発生しました")
+        logger.exception("APIエラーが発生しました")
         return None
     except Exception:
-        logger.exception(f"エラーが発生しました")
+        logger.exception("エラーが発生しました")
         return None
 
-def save_to_json(result: ExchangeResult) -> Path:
-    """ JOSONファイルの一時保存 """
-    output_dir = Path(tempfile.gettempdir()) / "exchange_rates"
-    output_dir.mkdir(parents=True, exist_ok=True)
+def exchange_rate_to_dict(rate: ExchangeRate) -> dict:
+    return {
+        "date": rate.date.isoformat(),
+        "base": rate.base,
+        "currency": rate.currency,
+        "rate": rate.rate,
+        "fetched_at": rate.fetched_at.isoformat(),
+    }
 
-    now_utc = datetime.now(timezone.utc)
-    timestamp = now_utc.strftime("%Y-%m-%dT%H-%M-%SZ")
-    file_path = output_dir / f"exchange_{timestamp}.json"
+def build_s3_key(base_prefix: str, target_date: date) -> str:
+    year = target_date.strftime("%Y")
+    month = target_date.strftime("%m")
+    filename = f"rates_{target_date.strftime('%Y%m%d')}.json"
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
+    return f"{base_prefix}/year={year}/month={month}/{filename}"
 
-    logger.info("JSONファイル保存完了 path=%s", file_path)
-    return file_path
-
-def upload_to_s3(file_path: Path, bucket_name: str, prefix: str) -> None:
+def upload_to_s3(rates: list[ExchangeRate], bucket_name: str, prefix: str) -> None:
     """ S3アップロード """
 
-    s3_key = f"{prefix}/{file_path.name}"
+    if not rates:
+        raise ValueError("アップロードする為替レートデータがありません。")
 
+    # JSON Lines 形式でデータを作成する
+    json_lines = "\n".join(json.dumps(exchange_rate_to_dict(r), ensure_ascii=False) for r in rates)
+
+    # S3キーの生成
+    target_date = rates[0].date
+    s3_key = build_s3_key(prefix, target_date)
+
+    # S3ファイルアップロード
     s3_client = boto3.client("s3")
     try:
-        s3_client.upload_file(
-            str(file_path),
-            bucket_name,
-            s3_key,
-            ExtraArgs={"ContentType": "application/json"},
+        s3_client.put_object(
+            Body=json_lines.encode("utf-8"),
+            Bucket=bucket_name,
+            Key=s3_key,
+            ContentType="application/json",
         )
         logger.info("S3アップロード完了 s3://%s/%s", bucket_name, s3_key)
-
-        # 一時ファイル（tempfile配下のJSONファイル）を削除する
-        if file_path.exists():
-            file_path.unlink()
-            logger.info("一時ファイル削除完了 path=%s", file_path)
     except Exception:
         logger.exception("S3へのアップロードに失敗しました。")
         raise
-
     return
 
 def get_config() -> Config:
-    """ 環境変数の取得 """
+    """ 環境変数を取得して Config オブジェクトを返す """
 
-    base = os.getenv("BASE_CURRENCY", "USD")
     targets = os.getenv("TARGET_CURRENCIES", "JPY,EUR,GBP")
-    bucket = os.getenv("S3_BUCKET_NAME")
-    prefix = os.getenv("S3_PREFIX")
+    target_list = [t.strip() for t in targets.split(",")]
 
-    # 環境変数のチェック
-    if not bucket:
-        raise ValueError("S3_BUCKET_NAME が設定されていません。")
-    if not prefix:
-        raise ValueError("S3_PREFIX が設定されていません。")
-    # targets
-    target_currencies = [t.strip() for t in targets.split(",")]
-    # JPY が含まれていない場合は先頭に追加
-    if "JPY" not in target_currencies:
-        target_currencies.insert(0, "JPY")
-        logger.info("リストに JPY が含まれていなかったため、先頭に追加しました。")
+    return Config(
+        base=os.getenv("BASE_CURRENCY", "USD"),
+        targets=target_list,
+        bucket=os.getenv("S3_BUCKET_NAME", ""),
+        prefix=os.getenv("S3_PREFIX", ""),
+    )
 
-    return {
-        "base": base,
-        "targets": target_currencies,
-        "bucket": bucket,
-        "prefix": prefix,
-    }
+class DisplayRate(TypedDict):
+    name: str
+    rate: float
 
-def display_rates(result: ExchangeResult, targets: list[str]) -> None:
-    """ 為替レートの表示 """
+def calculate_display_rates(
+    rates: list[ExchangeRate],
+    targets: list[str],
+) -> tuple[str, list[DisplayRate]]:
+    """ 表示用レートを計算する """
 
-    #  USD_JPY レートを取得
-    usd_jpy_rate = result['rates'].get("JPY", 0)
-    logger.info(f"為替レート取得結果（基準日:{result['date']}）")
-    # targets のリスト順にループを回す
+    if not rates:
+        return "", []
+
+    base = rates[0].base
+    base_date = rates[0].date.isoformat()
+
+    rate_map = {r.currency: r.rate for r in rates}
+    usd_jpy_rate = rate_map.get("JPY")
+
+    results: list[DisplayRate] = []
+
     for target in targets:
-        rate = result['rates'].get(target)
+        rate = rate_map.get(target)
         if rate is None:
             continue
 
         if target == "JPY":
-            # 基準通貨(USD)とJPYのペアを表示
-            display_name = f"{result['base']}_{target}"
+            display_name = f"{base}_{target}"
             display_rate = rate
         else:
-            # それ以外の通貨は対円(XXX_JPY)に変換
+            if usd_jpy_rate is None:
+                continue
             display_name = f"{target}_JPY"
+            if rate == 0:
+                continue
             display_rate = usd_jpy_rate / rate
-            
-        # ログ出力
-        logger.info(f"{display_name}: {display_rate:.2f} 円")
+
+        results.append({"name": display_name, "rate": display_rate})
+
+    return base_date, results
+
+def log_display_rates(base_date: str, display_rates: list[DisplayRate]) -> None:
+    logger.info("為替レート取得結果（基準日:%s）", base_date)
+
+    for r in display_rates:
+        logger.info("%s: %.2f 円", r["name"], r["rate"])
 
 def run() -> None:
     # ロギング設定
@@ -171,20 +206,18 @@ def run() -> None:
         sys.exit(1)
 
     # 為替レートを取得
-    result = get_exchange_rate(base=config["base"], targets=config["targets"])
+    result = fetch_exchange_rate(base=config.base, targets=config.targets)
     if not result:
         logger.error("為替レートの取得に失敗しました。")
         sys.exit(1)
     logger.info("為替レート取得完了")
 
-    # 結果をJSONファイルに保存
-    json_path = save_to_json(result)
-
     # S3 アップロード
-    upload_to_s3(file_path=json_path, bucket_name=config["bucket"], prefix=config["prefix"])
+    upload_to_s3(rates=result, bucket_name=config.bucket, prefix=config.prefix)
 
     # 為替レートの表示
-    display_rates(result=result, targets=config["targets"])
+    base_date, display_rates = calculate_display_rates(rates=result, targets=config.targets)
+    log_display_rates(base_date, display_rates)
 
 def lambda_handler(evnt, context):
     """
