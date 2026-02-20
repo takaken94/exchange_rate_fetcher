@@ -6,7 +6,7 @@ import main
 def make_rate(currency: str, rate: float) -> main.ExchangeRate:
     # helper to create ExchangeRate for a fixed date/time
     return main.ExchangeRate(
-        date=date(2026, 2, 13),
+        base_date=date(2026, 2, 13),
         base="USD",
         currency=currency,
         rate=rate,

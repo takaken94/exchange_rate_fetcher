@@ -20,7 +20,7 @@ logger = logging.getLogger(Path(__file__).stem)
 
 @dataclass(frozen=True)
 class ExchangeRate:
-    date: date           # 基準日
+    base_date: date      # 基準日
     base: str            # 基準通貨コード
     currency: str        # 通貨コード
     rate: float          # 為替レート
@@ -64,7 +64,7 @@ def build_exchange_result(data: dict) -> list[ExchangeRate]:
     for currency, rate in data["rates"].items():
         results.append(
             ExchangeRate(
-                date=datetime.fromisoformat(data["date"]).date(),
+                base_date=datetime.fromisoformat(data["date"]).date(),
                 base=data["base"],
                 currency=currency,
                 rate=rate,
@@ -92,7 +92,7 @@ def fetch_exchange_rate(base: str, targets: list[str]) -> list[ExchangeRate] | N
 
 def exchange_rate_to_dict(rate: ExchangeRate) -> dict:
     return {
-        "date": rate.date.isoformat(),
+        "base_date": rate.base_date.isoformat(),
         "base": rate.base,
         "currency": rate.currency,
         "rate": rate.rate,
@@ -116,7 +116,7 @@ def upload_to_s3(rates: list[ExchangeRate], bucket_name: str, prefix: str) -> No
     json_lines = "\n".join(json.dumps(exchange_rate_to_dict(r), ensure_ascii=False) for r in rates)
 
     # S3キーの生成
-    target_date = rates[0].date
+    target_date = rates[0].base_date
     s3_key = build_s3_key(prefix, target_date)
 
     # S3ファイルアップロード
@@ -161,7 +161,7 @@ def calculate_display_rates(
         return "", []
 
     base = rates[0].base
-    base_date = rates[0].date.isoformat()
+    base_date = rates[0].base_date.isoformat()
 
     rate_map = {r.currency: r.rate for r in rates}
     usd_jpy_rate = rate_map.get("JPY")

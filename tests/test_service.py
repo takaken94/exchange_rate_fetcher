@@ -22,7 +22,7 @@ def test_fetch_exchange_rate_success():
 
     # 共通項の検証
     for er in exchange_rates:
-        assert er.date.isoformat() == "2026-02-13"
+        assert er.base_date.isoformat() == "2026-02-13"
         assert er.base == "USD"
 
     # 通貨ごとの検証
