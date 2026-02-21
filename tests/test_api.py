@@ -9,9 +9,9 @@ def test_request_api_exchange_rate():
     mock_response.raise_for_status.return_value = None
 
     with patch("main.requests.get", return_value=mock_response) as m:
-        request_api_exchange_rate("USD", ["JPY", "EUR"])
+        request_api_exchange_rate("JPY", ["USD", "EUR"])
 
     m.assert_called_once()
     args, kwargs = m.call_args
-    assert kwargs["params"]["symbols"] == "JPY,EUR"
+    assert kwargs["params"]["symbols"] == "USD,EUR"
     assert kwargs["timeout"] == 10

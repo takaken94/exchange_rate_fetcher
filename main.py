@@ -39,14 +39,13 @@ class Config:
             raise ValueError("S3_BUCKET_NAME が設定されていません。")
         if not self.prefix:
             raise ValueError("S3_PREFIX が設定されていません。")
-        if "JPY" not in self.targets:
-            raise ValueError("TARGET_CURRENCIES に JPY が含まれていません。")
 
 def request_api_exchange_rate(base: str, targets: list[str]) -> dict:
     """ APIリクエスト """
 
     url = "https://api.frankfurter.dev/v1/latest"
     params = {
+        "amount": 100,
         "base": base,
         "symbols": ",".join(targets),
     }
@@ -62,12 +61,14 @@ def build_exchange_result(data: dict) -> list[ExchangeRate]:
 
     results = []
     for currency, rate in data["rates"].items():
+        # 100で割って1円あたりのレート（対円）に直して保存
+        rate_jpy = round(100 / rate, 2)
         results.append(
             ExchangeRate(
                 base_date=datetime.fromisoformat(data["date"]).date(),
                 base=data["base"],
                 currency=currency,
-                rate=rate,
+                rate=rate_jpy,
                 fetched_at=fetched_at,
             )
         )
@@ -102,7 +103,7 @@ def exchange_rate_to_dict(rate: ExchangeRate) -> dict:
 def build_s3_key(base_prefix: str, target_date: date) -> str:
     year = target_date.strftime("%Y")
     month = target_date.strftime("%m")
-    filename = f"rates_{target_date.strftime('%Y%m%d')}.json"
+    filename = f"rates_{target_date.strftime('%Y%m%d')}.jsonl"
 
     return f"{base_prefix}/year={year}/month={month}/{filename}"
 
@@ -137,62 +138,21 @@ def upload_to_s3(rates: list[ExchangeRate], bucket_name: str, prefix: str) -> No
 def get_config() -> Config:
     """ 環境変数を取得して Config オブジェクトを返す """
 
-    targets = os.getenv("TARGET_CURRENCIES", "JPY,EUR,GBP")
+    targets = os.getenv("TARGET_CURRENCIES", "USD,EUR,GBP")
     target_list = [t.strip() for t in targets.split(",")]
 
     return Config(
-        base=os.getenv("BASE_CURRENCY", "USD"),
+        base=os.getenv("BASE_CURRENCY", "JPY"),
         targets=target_list,
         bucket=os.getenv("S3_BUCKET_NAME", ""),
         prefix=os.getenv("S3_PREFIX", ""),
     )
 
-class DisplayRate(TypedDict):
-    name: str
-    rate: float
+def display_exchange_rate(rates: list[ExchangeRate]) -> None:
+    logger.info("為替レート取得結果（基準日:%s）", rates[0].base_date.isoformat())
 
-def calculate_display_rates(
-    rates: list[ExchangeRate],
-    targets: list[str],
-) -> tuple[str, list[DisplayRate]]:
-    """ 表示用レートを計算する """
-
-    if not rates:
-        return "", []
-
-    base = rates[0].base
-    base_date = rates[0].base_date.isoformat()
-
-    rate_map = {r.currency: r.rate for r in rates}
-    usd_jpy_rate = rate_map.get("JPY")
-
-    results: list[DisplayRate] = []
-
-    for target in targets:
-        rate = rate_map.get(target)
-        if rate is None:
-            continue
-
-        if target == "JPY":
-            display_name = f"{base}_{target}"
-            display_rate = rate
-        else:
-            if usd_jpy_rate is None:
-                continue
-            display_name = f"{target}_JPY"
-            if rate == 0:
-                continue
-            display_rate = usd_jpy_rate / rate
-
-        results.append({"name": display_name, "rate": display_rate})
-
-    return base_date, results
-
-def log_display_rates(base_date: str, display_rates: list[DisplayRate]) -> None:
-    logger.info("為替レート取得結果（基準日:%s）", base_date)
-
-    for r in display_rates:
-        logger.info("%s: %.2f 円", r["name"], r["rate"])
+    for r in rates:
+        logger.info("%s_JPY: %.2f 円", r.currency, r.rate)
 
 def run() -> None:
     # ロギング設定
@@ -216,8 +176,7 @@ def run() -> None:
     upload_to_s3(rates=result, bucket_name=config.bucket, prefix=config.prefix)
 
     # 為替レートの表示
-    base_date, display_rates = calculate_display_rates(rates=result, targets=config.targets)
-    log_display_rates(base_date, display_rates)
+    display_exchange_rate(rates=result)
 
 def lambda_handler(evnt, context):
     """

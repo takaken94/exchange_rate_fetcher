@@ -5,16 +5,16 @@ import requests
 
 def test_fetch_exchange_rate_success():
     mock_data = {
-        "date": "2026-02-13",
-        "base": "USD",
+        "date": "2026-02-20",
+        "base": "JPY",
         "rates": {
-            "EUR": 0.85,
-            "JPY": 150.0
+            "EUR": 0.54756,
+            "USD": 0.64431
         }
     }
 
     with patch("main.request_api_exchange_rate", return_value=mock_data):
-        exchange_rates = fetch_exchange_rate("USD", ["JPY", "EUR"])
+        exchange_rates = fetch_exchange_rate("JPY", ["EUR", "USD"])
 
     # 検証
     assert exchange_rates is not None
@@ -22,13 +22,13 @@ def test_fetch_exchange_rate_success():
 
     # 共通項の検証
     for er in exchange_rates:
-        assert er.base_date.isoformat() == "2026-02-13"
-        assert er.base == "USD"
+        assert er.base_date.isoformat() == "2026-02-20"
+        assert er.base == "JPY"
 
     # 通貨ごとの検証
     currencies = {er.currency: er for er in exchange_rates}
-    assert currencies["EUR"].rate == 0.85
-    assert currencies["JPY"].rate == 150.0
+    assert currencies["EUR"].rate == 182.63
+    assert currencies["USD"].rate == 155.20
 
 def test_fetch_exchange_rate_api_timeout(caplog):
     """ 異常系: APIタイムアウト """
